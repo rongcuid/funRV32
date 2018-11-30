@@ -118,164 +118,114 @@ module spram_wrapper
    
 endmodule // spram_wrapper
 
-module ram_cache
+module main_mem
   (
-   input wire 	      clk,
-   input wire 	      reset,
-   input wire 	      im_ren,
-   input wire [13:0]  im_addr,
-   output wire [31:0] im_rdata,
-   output wire 	      im_miss,
+   input wire 	      i_clk,
+   input wire 	      i_rst,
+  
+   input wire 	      i_im_ren,
+   input wire [13:0]  i_im_addr,
+   output wire [31:0] o_im_rdata,
+  
+   input wire 	      i_dm_ren,
+   input wire 	      i_dm_wen,
+   input wire [3:0]   i_dm_ben,
+   input wire [13:0]  i_dm_addr,
+   input wire [31:0]  i_dm_wdata,
+   output wire [31:0] o_dm_rdata,
 
-   input wire 	      dm_ren,
-   input wire [3:0]   dm_ben,
-   input wire [13:0]  dm_addr,
-   input wire [31:0]  dm_wdata,
-   output wire [31:0] dm_rdata,
-   output wire 	      dm_miss,
-
-   output wire 	      ready,
-
-   output wire [13:0] mem_addr,
-   output wire [31:0] mem_wdata,
-   output wire [3:0]  mem_ben,
-   output wire 	      mem_wen,
-   input wire [31:0]  mem_rdata,
-
+   input wire 	      i_fence_i,
+   output wire 	      o_ready
    );
-   reg [15:0] 	      tags [0:255];
-   reg [31:0] 	      cache [0:255];
 
-   integer 	      i;
-   initial begin
-      for (i=0; i<256; i=i+1)
-	tags[i] = 16'b0;
+   reg [13:0] 	      dirty [0:255];
+   reg [7:0] 	      dirty_head, clean_head;
+   wire 	      do_write;
+   reg 		      dirty_addr;
+   wire 	      dirty_full;
+
+   assign dirty_full = &dirty_head;
+   assign do_write = !dirty_full && i_dm_wen;
+
+   // Keep track of all DM writes
+   always @ (posedge i_clk) begin : DIRTY_INDEX
+      if (do_write) begin
+	 dirty[dirty_head] <= i_dm_addr;
+      end
+      dirty_addr <= dirty[clean_head];
    end
+
+   wire next_sync;
+   assign next_sync = i_fence_i || dirty_full; // This wastes one clock on dirty_full
+   reg syncing;
+   wire do_sync;
+   assign do_sync = next_sync || syncing;
    
-   // 2R1W
-   reg [15:0] tag_im, tag_dm;
-   reg [31:0] data_im, data_dm;
-   wire       cache_wen;
-   wire [7:0] cache_waddr;
-   wire [31:0] cache_wdata;
-   wire [15:0] tag_wdata;
-   always @ (posedge clk) begin : MEMORY
-      if (im_ren) begin
-	 tag_im <= tags[im_addr[7:0]];
-	 data_im <= cache[im_addr[7:0]];
+   wire [13:0] im_addr, dm_addr;
+   wire [31:0] im_rdata, im_wdata, dm_rdata, dm_wdata;
+   wire        im_wen, dm_wen;
+   wire [3:0]  dm_ben;
+   spram_wrapper spram0
+     (.clk(i_clk), .addr(im_addr), .wdata(im_wdata), .wen(im_wen),
+      .ben(4'b1111), .rdata(im_rdata));
+   spram_wrapper spram1
+     (.clk(i_clk), .addr(dm_addr), .wdata(dm_wdata), .wen(dm_wen),
+      .ben(dm_ben), .rdata(dm_rdata)
+      );
+
+   reg 	       do_sync_p, do_sync_pp;
+   reg [13:0]  dirty_addr_p, dirty_addr_pp;
+   always @ (posedge i_clk) begin : MEM_PIPELINE
+      if (i_rst) begin
+	 do_sync_p <= 1'b0;
+	 do_sync_pp <= 1'b0;
       end
-      if (dm_ren) begin
-	 tag_dm <= tags[dm_addr[7:0]];
-	 data_dm <= cache[dm_addr[7:0]];
-      end
-      if (cache_wen) begin
-	 tags[cache_waddr] <= tag_wdata;
-	 cache[cache_waddr] <= cache_wdata;
+      else begin
+	 do_sync_p <= do_sync;
+	 do_sync_pp <= do_sync_p;
+	 dirty_addr_p <= dirty_addr;
+	 dirty_addr_pp <= dirty_addr_p;
       end
    end
 
-   assign im_miss = (!tag_im[15]) || (im_tag_p != tag_im[5:0]);
-   assign dm_miss = (!tag_dm[15]) || (dm_tag_p != tag_dm[5:0]);
-   // Encoded so that next state is {0, im_miss, dm_miss} at HIT
-   localparam
-     HIT = 3'b000,
-     MISS_IM = 3'b010,
-     WAIT_IM = 3'b110,
-     MISS_DM = 3'b001,
-     WAIT_DM = 3'b101,
-     MISS_BOTH = 3'b011,
-     WAIT_BOTH = 3'b111;
+   assign im_wen = do_sync_pp;
+   assign im_addr = do_sync_pp ? dirty_addr_pp : i_im_addr;
+   assign im_wdata = dm_rdata;
    
-   reg [2:0] ccu_state;
-   /*
-    The cache controller state machine. DM miss is handled before IM
-    miss to commit part of pipeline
-    @reset: start with MISS_IM
-    @HIT: do nothing special
-    @MISS_IM: retrieve instruction memory to cache
-    @MISS_DM: retrieve data memory to cache
-    @MISS_BOTH: retrieve data memory, then instruction memory
-    */
-   always @ (posedge clk) begin : CCU_FSM
-      if (reset) begin
-	 ccu_state <= MISS_IM;
+   assign dm_wen = do_sync_p ? 1'b1 : i_dm_wen;
+   assign dm_ben = do_sync_p ? 4'b1111 : i_dm_ben;
+   assign dm_addr = do_sync_p ? dirty_addr_p : i_dm_addr;
+   assign dm_wdata = i_dm_wdata;
+
+   wire clean_end;
+   assign clean_end = clean_head == dirty_head;
+   always @ (posedge i_clk) begin : MEM_FSM
+      if (i_rst) begin
+	 dirty_head <= 8'b0;
+	 syncing <= 1'b0;
+	 clean_head <= 8'b0;
       end
-      else if (clk) begin
-	 case (ccu_state)
-	   HIT: begin
-	      ccu_state <= {1'b0, im_miss, dm_miss};
-	   end
-	   MISS_IM: begin
-	      ccu_state <= WAIT_IM;
-	   end
-	   WAIT_IM: begin
-	      ccu_state <= HIT;
-	   end
-	   MISS_DM: begin
-	      ccu_state <= WAIT_DM;
-	   end
-	   WAIT_DM: begin
-	      ccu_state <= HIT;
-	   end
-	   MISS_BOTH: begin
-	      ccu_state <= WAIT_BOTH;
-	   end
-	   WAIT_BOTH: begin
-	      ccu_state <= WAIT_IM;
-	   end
-	   default: begin
-	   end
-	 endcase
+      else begin
+	 clean_head <= 8'b0;
+	 if (do_write) begin
+	    dirty_head <= dirty_head + 8'b1;
+	 end
+	 if (do_sync) begin
+	    syncing <= !clean_end;
+	    clean_head <= clean_end ? 8'b0 : clean_head + 8'b1;
+	    dirty_head <= clean_end ? 8'b0 : dirty_head;
+	 end
       end
    end
 
-   reg [5:0] im_tag_p, dm_tag_p;
-   reg [7:0] im_index_p, dm_index_p;
-   reg [3:0] dm_ben_p;
-   reg 	     dm_store_p;
-   always @ (posedge clk) begin : CCU_DPU
-      case (ccu_state)
-	HIT: begin
-	   im_tag_p <= im_addr[13:8];
-	   im_index_p <= im_addr[7:0];
-	   dm_tag_p <= dm_addr[13:8];
-	   dm_index_p <= dm_addr[7:0];
-	   dm_ben_p <= dm_ben;
-	   dm_store_p <= |dm_ben;
-	end
-	MISS_IM: begin
-	end
-	WAIT_IM: begin
-	end
-	MISS_DM: begin
-	end
-	WAIT_DM: begin
-	end
-	MISS_BOTH: begin
-	end
-	WAIT_BOTH: begin
-	end
-	default: begin
-	end
-      endcase
-   end
+   assign o_ready = !dirty_full && !do_sync_p && !do_sync_pp;
+   assign o_im_rdata = im_rdata;
+   assign o_dm_rdata = dm_rdata;
 
-   assign tag_wdata = (ccu_state == MISS_DM || ccu_state == MISS_BOTH)
-     ? {2'b10, 8'bX, dm_tag_p} : {2'b10, 8'bX, im_tag_p};
-   assign cache_waddr
-     = (ccu_state == MISS_DM || ccu_state == MISS_BOTH)
-       ? dm_index_p
-       : im_index_p;
-   assign cache_wen = ccu_state == WAIT_IM 
-		      || ccu_state ==  WAIT_DM
-		      || ccu_state == WAIT_BOTH;
-   assign cache_wdata = dm_store_p ? dm_wdata : mem_rdata;
-   assign mem_ben = dm_ben_p;
-   assign mem_wen = ccu_state == MISS_DM && dm_store_p;
-   assign mem_addr = (ccu_state == MISS_DM || ccu_state == MISS_BOTH)
-     ? {dm_tag_p, dm_index_p} : {im_tag_p, im_index_p};
-   assign mem_wdata = dm_wdata;
-   assign im_rdata = data_im;
-   assign dm_rdata = data_dm;
-   assign ready = ccu_state == HIT;
-endmodule // ram_cache
+   //assume property (!(i_fence_i && i_dm_wen));
+   // assert property ( @(posedge i_clk)i_fence_i |=> !o_ready );
+   // assert property (@(posedge i_clk)i_fence_i |=> syncing);
+   // assert property (@(posedge i_clk)syncing & clean_end |=> clean_head == 8'b0);
+   // assert property (@(posedge i_clk)syncing & clean_end |=> dirty_head == 8'b0);
+   
+endmodule
