@@ -9,7 +9,7 @@ module funrv32_reg_top
    reg [4:0]  a1, a2, ad;
    wire [31:0] rs1, rs2;
    reg [31:0]  rd;
-   funrv32_reg
+   regfile
      rf0 (.clk(clk), .we(1'b1),.a1(a1),.ad(ad),.r1(rs1),.rd(rd));
    always @ (posedge clk) begin
       if (!resetb) begin
