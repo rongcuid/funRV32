@@ -2,7 +2,7 @@
  These are encoded as {funct7[5], funct3}
  */
 `define ALUOP_ADD       4'b0000
-`define ALUOP_SUB 	4'b1000
+//`define ALUOP_SUB 	4'b1000
 `define ALUOP_SLL       4'b0001
 `define ALUOP_SLT 	4'b0010
 `define ALUOP_SLTU 	4'b0011
@@ -453,14 +453,13 @@ module main_alu
    assign adder_out = op1 + op2;
    always @ (posedge i_clk) begin
       op1 <= i_op1;
-      op2 <= (i_opsel==`ALUOP_SUB ? -i_op2 : i_op2);
+      op2 <= i_op2;
       // s16sel <= i_op2[4];
       //op1_sll16 <= i_op1[15:0];
       //op1_srl16 <= i_op1[31:16];
       opsel <= i_opsel;
       
       add_p <= adder_out;
-      sub_p <= adder_out;
       
       sll_p <= op1 << op2[3:0];
       srl_p <= op1 >> op2[3:0];
@@ -479,7 +478,6 @@ module main_alu
    always @ (*) begin : ALU_LOGIC
       case (opsel_p)
 	`ALUOP_ADD: o_aluout = add_p;
-	`ALUOP_SUB: o_aluout = sub_p;
 	`ALUOP_SLL: o_aluout = s16sel_p ? {sll_p[0+:16],16'b0} : sll_p;
 	`ALUOP_SLT: o_aluout = {31'b0, (slth_p ? 1'b1 : sltl_p)};
 	`ALUOP_SLTU: o_aluout = {31'b0, (sltuh_p ? 1'b1 : sltl_p)};
