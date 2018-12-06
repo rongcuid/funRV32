@@ -1,4 +1,4 @@
-all: main_mem.time.log
+all: inst_decoder.time.log funrv32_reg.time.log main_mem.time.log
 
 %.json: ../funrv32.v %_test.v
 	yosys -p 'synth_ice40 -json $@ -top ${@:.json=_top}' $^ | tee ${@:.json=.syn.log}
@@ -18,15 +18,12 @@ all: main_mem.time.log
 # funrv32_reg.time.log: funrv32_reg.asc
 # 	icetime -d up5k -t $^ | tee funrv32_reg.time.log
 
-
-# counter.json: counter.v
-# 	yosys -p 'synth_ice40 -json $@ -top counter_top' $^ | tee counter.syn.log
-
-# counter.asc: counter.json
-# 	nextpnr-ice40 --up5k --pcf $(@:asc=pcf) --asc $@ --json $^ | tee counter.pnr.log
-
-# counter.time.log: counter.asc
-# 	icetime -d up5k -t $^ | tee counter.time.log
+counter: counter.v
+	yosys -p 'synth_ice40 -json counter.json -top counter_top' counter.v | tee counter.syn.log
+	nextpnr-ice40 --up5k --asc counter.asc --json counter.json | tee counter.pnr.log
+	icetime -d up5k -t counter.asc | tee counter.time.log
 
 clean:
 	rm -f *.json *.asc *.log
+
+.PHONY: counter clean
