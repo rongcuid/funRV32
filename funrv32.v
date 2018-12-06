@@ -435,13 +435,10 @@ module main_alu
    );
 
    reg [31:0] 	      add_p, sub_p, sll_p, xor_p, srl_p, sra_p, or_p, and_p;
-   reg 		      sltl_p, slth_p, sltuh_p;
    reg [3:0] 	      opsel_p, opsel;
    // Split into a signed comparison on high and unsigned on low
-   //wire 	      slth, sltl, sltuh;
-   // assign slth = op1_sh < op2_sh;
-   // assign sltl = i_op1[0+:16] < i_op2[0+:16];
-   // assign sltuh = i_op1[16+:16] < i_op2[16+:16];
+   reg 		      sltl_p, slth_p, sltuh_p;
+   reg 		      slth, sltl, sltuh;
 
    reg [31:0] 	      op1, op2;
    //reg [15:0] 	      op1_sll16, op1_srl16;
@@ -458,6 +455,9 @@ module main_alu
       //op1_sll16 <= i_op1[15:0];
       //op1_srl16 <= i_op1[31:16];
       opsel <= i_opsel;
+      slth <= $signed(i_op1[16+:16]) < $signed(i_op2[16+:16]);
+      sltuh <= i_op1[16+:16] < i_op2[16+:16];
+      sltl <= i_op1[0+:16] < i_op2[0+:16];
       
       add_p <= adder_out;
       
@@ -469,9 +469,12 @@ module main_alu
       xor_p <= op1 ^ op2;
       or_p <= op1 | op2;
       and_p <= op1 & op2;
-      slth_p <= $signed(op1[16+:16]) < $signed(op2[16+:16]);
-      sltuh_p <= op1[16+:16] < op2[16+:16];
-      sltl_p <= op1[0+:16] < op2[0+:16];
+      slth_p <= slth;
+      sltuh_p <= sltuh;
+      sltl_p <= sltl;
+      // slth_p <= $signed(op1[16+:16]) < $signed(op2[16+:16]);
+      // sltuh_p <= op1[16+:16] < op2[16+:16];
+      // sltl_p <= op1[0+:16] < op2[0+:16];
       opsel_p <= opsel;
    end
    
