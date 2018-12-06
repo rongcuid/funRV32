@@ -439,12 +439,13 @@ module main_alu
    assign op2_sh = i_op2[16+:16];
 
    reg [31:0] 	      add_p, sub_p, sll_p, xor_p, srl_p, sra_p, or_p, and_p;
-   reg 		      sltl_p, slth_p, sltu_p;
+   reg 		      sltl_p, slth_p, sltuh_p;
    reg [3:0] 	      opsel_p;
    // Split into a signed comparison on high and unsigned on low
-   wire 	      slth, sltl;
+   wire 	      slth, sltl, sltuh;
    assign slth = op1_sh < op2_sh;
-   assign sltl = op1[0+:16] < op2[0+:16];
+   assign sltl = i_op1[0+:16] < i_op2[0+:16];
+   assign sltuh = i_op1[16+:16] < i_op2[16+:16];
    always @ (posedge i_clk) begin
       add_p <= i_op1 + i_op2;
       sub_p <= i_op1 - i_op2;
@@ -455,8 +456,8 @@ module main_alu
       or_p <= i_op1 | i_op2;
       and_p <= i_op1 & i_op2;
       slth_p <= slth;
+      sltuh_p <= sltuh;
       sltl_p <= sltl;
-      sltu_p <= i_op1 < i_op2 ? 1'b1 : 1'b0;
       opsel_p <= i_opsel;
    end
    
@@ -466,7 +467,7 @@ module main_alu
 	`ALUOP_SUB: o_aluout = sub_p;
 	`ALUOP_SLL: o_aluout = sll_p;
 	`ALUOP_SLT: o_aluout = {31'b0, (slth_p ? 1'b1 : sltl_p)};
-	`ALUOP_SLTU: o_aluout = {31'b0, sltu_p};
+	`ALUOP_SLTU: o_aluout = {31'b0, (sltuh_p ? 1'b1 : sltl_p)};
 	`ALUOP_XOR: o_aluout = xor_p;
 	`ALUOP_SRL: o_aluout = srl_p;
 	`ALUOP_SRA: o_aluout = sra_p;
