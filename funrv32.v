@@ -446,15 +446,15 @@ module main_alu
    reg [31:0] 	      op1, op2;
    //reg [15:0] 	      op1_sll16, op1_srl16;
    //reg [15:0] 	      sll16_p, srl16_p;
-   reg 		      s16sel;
+   //reg 		      s16sel;
    reg 		      s16sel_p;
 
    wire [31:0] 	      adder_out;
    assign adder_out = op1 + op2;
    always @ (posedge i_clk) begin
       op1 <= i_op1;
-      op2 <= (opsel_p==`ALUOP_SUB ? -i_op2 : i_op2);
-      s16sel <= i_op2[4];
+      op2 <= (i_opsel==`ALUOP_SUB ? -i_op2 : i_op2);
+      // s16sel <= i_op2[4];
       //op1_sll16 <= i_op1[15:0];
       //op1_srl16 <= i_op1[31:16];
       opsel <= i_opsel;
@@ -465,7 +465,7 @@ module main_alu
       sll_p <= op1 << op2[3:0];
       srl_p <= op1 >> op2[3:0];
       sra_p <= op1 >>> op2[3:0];
-      s16sel_p <= s16sel;
+      s16sel_p <= op2[4];
       
       xor_p <= op1 ^ op2;
       or_p <= op1 | op2;
