@@ -440,25 +440,33 @@ module main_alu
 
    reg [31:0] 	      add_p, sub_p, sll_p, xor_p, srl_p, sra_p, or_p, and_p;
    reg 		      sltl_p, slth_p, sltuh_p;
-   reg [3:0] 	      opsel_p;
+   reg [3:0] 	      opsel_p, opsel;
    // Split into a signed comparison on high and unsigned on low
    wire 	      slth, sltl, sltuh;
    assign slth = op1_sh < op2_sh;
    assign sltl = i_op1[0+:16] < i_op2[0+:16];
    assign sltuh = i_op1[16+:16] < i_op2[16+:16];
+
+   reg [31:0] 	      op1, op2;
+
+   wire [31:0] 	      adder_out;
+   assign adder_out = op1 + op2;
    always @ (posedge i_clk) begin
-      add_p <= i_op1 + i_op2;
-      sub_p <= i_op1 - i_op2;
-      sll_p <= i_op1 << i_op2[4:0];
-      xor_p <= i_op1 ^ i_op2;
-      srl_p <= i_op1 >> i_op2[4:0];
-      sra_p <= i_op1 >>> i_op2[4:0];
-      or_p <= i_op1 | i_op2;
-      and_p <= i_op1 & i_op2;
+      op1 <= i_op1;
+      op2 <= (opsel_p==ALUOP_SUB ? -i_op2 : i_op2);
+      add_p <= adder_out;
+      sub_p <= adder_out;
+      sll_p <= op1 << op2[4:0];
+      xor_p <= op1 ^ op2;
+      srl_p <= op1 >> op2[4:0];
+      sra_p <= op1 >>> op2[4:0];
+      or_p <= op1 | op2;
+      and_p <= op1 & op2;
       slth_p <= slth;
       sltuh_p <= sltuh;
       sltl_p <= sltl;
-      opsel_p <= i_opsel;
+      opsel <= i_opsel;
+      opsel_p <= opsel;
    end
    
    always @ (*) begin : ALU_LOGIC
