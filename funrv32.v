@@ -433,38 +433,42 @@ module main_alu
    input wire [3:0]  i_opsel,
    output reg [31:0] o_aluout
    );
-   wire signed [15:0] op1_sh;
-   wire signed [15:0] op2_sh;
-   assign op1_sh = i_op1[16+:16];
-   assign op2_sh = i_op2[16+:16];
 
    reg [31:0] 	      add_p, sub_p, sll_p, xor_p, srl_p, sra_p, or_p, and_p;
-   reg 		      sltl_p, slth_p, sltuh_p;
+   reg [15:0] 	      sll16_p;
+   reg 		      sltl_p, slth_p, sltuh_p, sll16sel_p;
    reg [3:0] 	      opsel_p, opsel;
    // Split into a signed comparison on high and unsigned on low
-   wire 	      slth, sltl, sltuh;
-   assign slth = op1_sh < op2_sh;
-   assign sltl = i_op1[0+:16] < i_op2[0+:16];
-   assign sltuh = i_op1[16+:16] < i_op2[16+:16];
+   wire signed [15:0] op1_sh, op2_sh;
+   assign op1_sh = op1[16+:16];
+   assign op2_sh = op2[16+:16];
+   //wire 	      slth, sltl, sltuh;
+   // assign slth = op1_sh < op2_sh;
+   // assign sltl = i_op1[0+:16] < i_op2[0+:16];
+   // assign sltuh = i_op1[16+:16] < i_op2[16+:16];
 
    reg [31:0] 	      op1, op2;
+   reg [15:0] 	      op1_sll16;
 
    wire [31:0] 	      adder_out;
    assign adder_out = op1 + op2;
    always @ (posedge i_clk) begin
       op1 <= i_op1;
       op2 <= (opsel_p==ALUOP_SUB ? -i_op2 : i_op2);
+      op1_sll16 <= op1[15:0];
       add_p <= adder_out;
       sub_p <= adder_out;
-      sll_p <= op1 << op2[4:0];
+      sll_p <= op1 << op2[3:0];
+      sll16_p <= op1_sll16 << op2[3:0];
+      sll16sel_p <= op2[4];
       xor_p <= op1 ^ op2;
       srl_p <= op1 >> op2[4:0];
       sra_p <= op1 >>> op2[4:0];
       or_p <= op1 | op2;
       and_p <= op1 & op2;
-      slth_p <= slth;
-      sltuh_p <= sltuh;
-      sltl_p <= sltl;
+      slth_p <= op1_sh < op2_sh;
+      sltuh_p <= op1[16+:16] < op2[16+:16];
+      sltl_p <= op1[0+:16] < op2[0+:16];
       opsel <= i_opsel;
       opsel_p <= opsel;
    end
@@ -473,7 +477,7 @@ module main_alu
       case (opsel_p)
 	`ALUOP_ADD: o_aluout = add_p;
 	`ALUOP_SUB: o_aluout = sub_p;
-	`ALUOP_SLL: o_aluout = sll_p;
+	`ALUOP_SLL: o_aluout = sll16sel_p ? {sll16_p,16'b0} : sll_p;
 	`ALUOP_SLT: o_aluout = {31'b0, (slth_p ? 1'b1 : sltl_p)};
 	`ALUOP_SLTU: o_aluout = {31'b0, (sltuh_p ? 1'b1 : sltl_p)};
 	`ALUOP_XOR: o_aluout = xor_p;
