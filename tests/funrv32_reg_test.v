@@ -1,7 +1,7 @@
 module funrv32_reg_top
   (
    input wire clk, 
-   input wire resetb,
+   input wire reset,
    output wire eq1,
    output wire eq2
    );
@@ -16,7 +16,7 @@ module funrv32_reg_top
      rf0 (.clk(clk), .we(1'b1),.a1(a1), .a2(a2),.ad(ad),.r1(rs1),.r2(rs2),.rd(rd));
 
    always @ (posedge clk) begin
-      if (!resetb) begin
+      if (reset) begin
 	 a1 <= 5'b0;
 	 a2 <= 5'b0;
 	 ad <= 5'b0;
