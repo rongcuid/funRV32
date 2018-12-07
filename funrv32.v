@@ -2,7 +2,7 @@
  These are encoded as {funct7[5], funct3}
  */
 `define ALUOP_ADD       4'b0000
-//`define ALUOP_SUB 	4'b1000
+`define ALUOP_SUB 	4'b1000
 `define ALUOP_SLL       4'b0001
 `define ALUOP_SLT 	4'b0010
 `define ALUOP_SLTU 	4'b0011
@@ -433,6 +433,102 @@ module main_alu
    output reg [31:0] o_aluout
    );
 
+ reg [31:0] op1_add_p;
+ reg [31:0] op2_add_p;
+ reg [31:0] op1_sub_p;
+ reg [31:0] op2_sub_p;
+ reg [31:0] op1_sll_p;
+ reg [4:0] op2_sll_p;
+ reg [31:0] op1_slt_p;
+ reg [31:0] op2_slt_p;
+ reg  [31:0] op1_sltu_p;
+ reg  [31:0] op2_sltu_p;
+ reg [31:0] op1_xor_p;
+ reg [31:0] op2_xor_p;
+ reg [31:0] op1_srl_p;
+ reg [4:0] op2_srl_p;
+   reg [31:0] op1_sra_p;
+   reg [4:0]  op2_sra_p;
+   reg [31:0] op1_or_p;
+   reg [31:0] op2_or_p;
+   reg [31:0] op1_and_p;
+   reg [31:0] op2_and_p;
+      
+reg [31:0]      add_pp ;
+reg [31:0]      sub_pp ;
+reg [31:0]      sll_pp ;
+reg       slth_pp, sltl_pp;
+reg       sltuh_pp, sltul_pp;
+   reg 	  sll16sel_pp, srl16sel_pp, sra16sel_pp;
+   
+reg [31:0]      xor_pp ;
+reg [31:0]      srl_pp ;
+reg [31:0]      sra_pp ;
+reg [31:0]      or_pp ;
+reg [31:0]      and_pp ;
+
+   reg [3:0] 	opsel_p, opsel_pp;
+   
+   always @ (posedge i_clk) begin : ALU_PIPELINE
+      opsel_p <= i_opsel;
+      op1_add_p <= i_op1;
+      op2_add_p <= i_op2;
+      op1_sub_p <= i_op1;
+      op2_sub_p <= ~i_op2;
+      op1_sll_p <= i_op1;
+      op2_sll_p <= i_op2[4:0];
+      op1_slt_p <= i_op1;
+      op2_slt_p <= i_op2;
+      op1_sltu_p <= i_op1;
+      op2_sltu_p <= i_op2;
+      op1_xor_p <= i_op1;
+      op2_xor_p <= i_op2;
+      op1_srl_p <= i_op1;
+      op2_srl_p <= i_op2[4:0];
+      op1_sra_p <= i_op1;
+      op2_sra_p <= i_op2[4:0];
+      op1_or_p <= i_op1;
+      op2_or_p <= i_op2;
+      op1_and_p <= i_op1;
+      op2_and_p <= i_op2;
+
+      opsel_pp <= opsel_p;
+      add_pp <= op1_add_p + op2_add_p;
+
+      sub_pp <= op1_sub_p + op2_sub_p + 32'b1;
+
+      sll_pp <= op1_sll_p << op2_sll_p[3:0];
+      sll16sel_pp <= op2_sll_p[4];
+      slth_pp <= $signed(op1_slt_p[16+:16]) < $signed(op1_slt_p[16+:16]);
+      sltl_pp <= op1_slt_p[0+:16] < op2_slt_p[0+:16];
+      sltuh_pp <= op1_sltu_p[16+:16] < op2_sltu_p[16+:16];
+      sltul_pp <= op1_sltu_p[0+:16] < op2_sltu_p[0+:16];
+      xor_pp <= op1_xor_p ^ op2_xor_p;
+      srl_pp <= op1_srl_p >> op2_srl_p[3:0];
+      srl16sel_pp <= op2_srl_p[4];
+      sra_pp <= op1_sra_p >>> op2_sra_p[3:0];
+      sra16sel_pp <= op2_sra_p[4];
+      or_pp <= op1_or_p | op2_or_p;
+      and_pp <= op1_and_p & op2_and_p;
+   end // block: ALU_PIPELINE
+   
+   always @ (*) begin : ALU_LOGIC
+      case (opsel_pp)
+	`ALUOP_ADD: o_aluout = add_pp;
+	`ALUOP_SUB: o_aluout = sub_pp;
+	`ALUOP_SLL: o_aluout = sll16sel_pp ? {sll_pp[0+:16],16'b0} : sll_pp;
+	`ALUOP_SLT: o_aluout = {31'b0, (slth_pp ? 1'b1 : sltl_pp)};
+	`ALUOP_SLTU: o_aluout = {31'b0, (sltuh_pp ? 1'b1 : sltul_pp)};
+	`ALUOP_XOR: o_aluout = xor_pp;
+	`ALUOP_SRL: o_aluout = srl16sel_pp ? {16'b0, srl_pp[16+:16]} : srl_pp;
+	`ALUOP_SRA: o_aluout = sra16sel_pp ? {{16{sra_pp[31]}}, sra_pp[16+:16]} : sra_pp;
+	`ALUOP_OR: o_aluout = or_pp;
+	`ALUOP_AND: o_aluout = and_pp;
+	default: o_aluout = 32'bX;
+      endcase // case (i_opsel)
+   end // block: ALU_LOGIC
+
+   `ifdef TWOSTAGE_ALU
    reg [31:0] 	      add_p, sub_p, sll_p, xor_p, srl_p, sra_p, or_p, and_p;
    reg [3:0] 	      opsel_p, opsel;
    // Split into a signed comparison on high and unsigned on low
@@ -490,5 +586,6 @@ module main_alu
 	`ALUOP_AND: o_aluout = and_p;
 	default: o_aluout = 32'bX;
       endcase // case (i_opsel)
-   end
+   end // block: ALU_LOGIC
+   `endif //  `ifdef TWOSTAGE_ALU
 endmodule // main_alu
