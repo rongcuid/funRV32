@@ -1,4 +1,4 @@
-all: inst_decoder.time.log funrv32_reg.time.log main_mem.time.log
+all: inst_decoder.time.log funrv32_reg.time.log main_mem.time.log main_alu.time.log
 
 %.json: ../funrv32.v %_test.v
 	yosys -p 'synth_ice40 -json $@ -top ${@:.json=_top}' $^ | tee ${@:.json=.syn.log}

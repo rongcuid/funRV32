@@ -57,7 +57,6 @@ module regfile
    
 endmodule // regfile
 
-`ifdef NONE
 module inst_decoder
   (
    input wire [31:0]  i_inst,
@@ -118,7 +117,7 @@ module inst_decoder
    assign o_a_rs1 = i_inst[19:15];
    assign o_a_rs2 = i_inst[24:20];
    assign o_a_rd = i_inst[11:7];
-   wire 	      cat_load, cat_store, cat_branch, cat_jalr, cat_miscmem,
+   reg 	      cat_load, cat_store, cat_branch, cat_jalr, cat_miscmem,
 		      cat_jal, cat_opimm, cat_op, cat_system, cat_auipc, cat_lui,
 		      cat_illegal;
 
@@ -135,7 +134,7 @@ module inst_decoder
       cat_auipc = 1'b0;
       cat_lui = 1'b0;
       cat_illegal = 1'b0;
-      case (inst[6:2])
+      case (i_inst[6:2])
 	5'b00000: cat_load = 1'b1;
 	5'b01000: cat_store = 1'b1;
 	5'b11000: cat_branch = 1'b1;
@@ -159,16 +158,17 @@ module inst_decoder
    assign imm_j = cat_jal;
 
    assign o_immediate
-     = imm_i ? { {21{inst[31]}}, inst[30:20] }
-       : imm_s ? { {21{inst[31]}}, inst[30:25], inst[11:7] }
-       : imm_b ? { {20{inst[31]}}, inst[7], inst[30:25], inst[11:8], 1'b0 }
-       : imm_u ? { inst[31:12], 12'b0 }
-       : imm_j ? { {12{inst[31]}}, inst[19:12], inst[20], inst[30:21], 1'b0 }
+     = imm_i ? { {21{i_inst[31]}}, i_inst[30:20] }
+       : imm_s ? { {21{i_inst[31]}}, i_inst[30:25], i_inst[11:7] }
+       : imm_b ? { {20{i_inst[31]}}, i_inst[7], i_inst[30:25], i_inst[11:8], 1'b0 }
+       : imm_u ? { i_inst[31:12], 12'b0 }
+       : imm_j ? { {12{i_inst[31]}}, i_inst[19:12], i_inst[20], i_inst[30:21], 1'b0 }
        : 32'bX;
 
    wire [2:0] funct3;
-   assign funct3 = inst[14:12];
-   assign funct7 = inst[31:25];
+   wire [6:0] funct7;
+   assign funct3 = i_inst[14:12];
+   assign funct7 = i_inst[31:25];
 
 
    assign o_inst_lui = cat_lui;
@@ -268,11 +268,10 @@ module inst_decoder
     	   o_inst_csrrc,
     	   o_inst_csrrwi,
     	   o_inst_csrrsi,
-    	   o_inst_csrrci,
-    	   o_inst_illegal
+    	   o_inst_csrrci
 	   });
 endmodule
-`endif
+
 module spram_wrapper
   (
    input wire 	      clk,
