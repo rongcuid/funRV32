@@ -367,6 +367,13 @@ module main_mem
       .ben(dm_ben), .rdata(dm_rdata)
       );
 
+   reg [31:0]  im_rdata_p;
+   reg [31:0]  dm_rdata_p;
+   always @ (posedge i_clk) begin : MEM_OUT
+      im_rdata_p <= im_rdata;
+      dm_rdata_p <= dm_rdata;
+   end
+
    reg 	       do_sync_p, do_sync_pp;
    reg [13:0]  dirty_addr_p, dirty_addr_pp;
    always @ (posedge i_clk) begin : MEM_PIPELINE
@@ -413,8 +420,8 @@ module main_mem
    end
 
    assign o_ready = !dirty_full && !do_sync_p && !do_sync_pp;
-   assign o_im_rdata = im_rdata;
-   assign o_dm_rdata = dm_rdata;
+   assign o_im_rdata = im_rdata_p;
+   assign o_dm_rdata = dm_rdata_p;
 
    //assume property (!(i_fence_i && i_dm_wen));
    // assert property ( @(posedge i_clk)i_fence_i |=> !o_ready );
