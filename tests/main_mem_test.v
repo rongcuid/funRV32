@@ -11,7 +11,7 @@ module main_mem_top
    wire        ready;
 
    (*keep*)
-   wire [31:0] result_i, result_d;
+   reg [31:0] result_i, result_d;
    
    main_mem mem0
      (

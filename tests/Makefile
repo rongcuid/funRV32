@@ -2,8 +2,8 @@ TARGET_MHZ=48
 
 all: inst_decoder.time.log funrv32_reg.time.log main_mem.time.log main_alu.time.log
 
-%.json: ../funrv32.v %_test.v
-	yosys -p 'synth_ice40 -abc2 -json $@ -top ${@:.json=_top}' $^ | tee ${@:.json=.syn.log}
+%.json: ../src/%.v %_test.v ../src/spram_wrapper.v
+	yosys -p 'verilog_defaults -add -I../src; synth_ice40 -abc2 -json $@ -top ${@:.json=_top}' $^ | tee ${@:.json=.syn.log}
 
 %.asc: %.json
 	nextpnr-ice40 --freq $(TARGET_MHZ) --up5k --asc $@ --json $^ | tee ${@:.asc=.pnr.log}
