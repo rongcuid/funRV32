@@ -39,8 +39,8 @@ module regfile
    end
 
    wire forward_1, forward_2;
-   assign forward_1 = a1 == ad;
-   assign forward_2 = a2 == ad;
+   assign forward_1 = we && a1 == ad;
+   assign forward_2 = we && a2 == ad;
    reg 	forward_1_p, forward_2_p;
    reg [31:0] rd_p;
    always @ (posedge clk) begin
