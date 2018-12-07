@@ -1,7 +1,7 @@
 module funrv32_reg_top
   (
    input wire clk, 
-   input wire resetb,
+   input wire reset,
    output wire eq1,
    output wire eq2
    );
@@ -9,10 +9,14 @@ module funrv32_reg_top
    reg [4:0]  a1, a2, ad;
    wire [31:0] rs1, rs2;
    reg [31:0]  rd;
+   (*keep*)
+   reg [31:0]  d_rs1, d_rs2;
+
    regfile
-     rf0 (.clk(clk), .we(1'b1),.a1(a1),.ad(ad),.r1(rs1),.rd(rd));
+     rf0 (.clk(clk), .we(1'b1),.a1(a1), .a2(a2),.ad(ad),.r1(rs1),.r2(rs2),.rd(rd));
+
    always @ (posedge clk) begin
-      if (!resetb) begin
+      if (reset) begin
 	 a1 <= 5'b0;
 	 a2 <= 5'b0;
 	 ad <= 5'b0;
@@ -25,8 +29,9 @@ module funrv32_reg_top
 	 rd <= rd + 32'b1;
       end
    end // always @ (posedge clk)
-   assign eq1 = rs1 == rd;
-   assign eq2 = rs2 == rd;
-   
-   
+
+   always @ (posedge clk) begin
+      d_rs1 <= rs1;
+      d_rs2 <= rs2;
+   end
 endmodule
