@@ -6,11 +6,14 @@ module funrv32_reg_top
    output wire eq2
    );
 
+   (*keep*)
    reg [4:0]  a1, a2, ad;
+   (*keep*)
    wire [31:0] rs1, rs2;
+   (*keep*)
    reg [31:0]  rd;
    regfile
-     rf0 (.clk(clk), .we(1'b1),.a1(a1),.ad(ad),.r1(rs1),.rd(rd));
+     rf0 (.clk(clk), .we(1'b1),.a1(a1), .a2(a2),.ad(ad),.r1(rs1),.r2(rs2),.rd(rd));
    always @ (posedge clk) begin
       if (!resetb) begin
 	 a1 <= 5'b0;
