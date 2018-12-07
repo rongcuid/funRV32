@@ -4,16 +4,15 @@ module main_mem_top
     input wire i_rst
     );
 
-   (*keep*)
    reg 	       dm_ren, dm_wen, fence_i;
-   (*keep*)
    reg [13:0]  dm_addr;
-   (*keep*)
    wire [31:0] im_rdata, dm_rdata;
-   (*keep*)
    reg [31:0]  dm_wdata;
-   (*keep*)
    wire        ready;
+
+   (*keep*)
+   wire [31:0] result_i, result_d;
+   
    main_mem mem0
      (
       .i_clk(i_clk), .i_rst(i_rst),
@@ -33,10 +32,14 @@ module main_mem_top
       end
       else begin
 	 if (ready) begin
-	    dm_addr <= dm_addr + 14'b1;
-	    dm_wdata <= dm_wdata + 32'b1;
+	    dm_addr <= dm_addr + 14'h1000;
+	    dm_wdata <= dm_wdata + 32'h10000;
 	 end
-	 fence_i <= dm_addr == 14'h1008;
+	 fence_i <= dm_addr[10];
       end
-   end
+   end // always @ (posedge i_clk)
+   always @ (posedge i_clk)
+     result_i <= im_rdata;
+   always @ (posedge i_clk)
+     result_d <= dm_rdata;
 endmodule
